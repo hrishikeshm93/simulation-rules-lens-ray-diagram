@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ray Diagram Rules for Lenses – 3D Simulation</title>
+<style>
+:root{--bg:#0b1030;--card:#151b45;--line:#2b3580;--tx:#eef1ff;--mu:#aab3ea;--r1:#ff5a5f;--r2:#3da5ff;--r3:#ffd23f;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 30% 0%,#1d2766,var(--bg) 60%);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh}
+header{padding:14px 18px 4px}
+h1{margin:0;font-size:clamp(18px,3.2vw,26px);background:linear-gradient(90deg,#ffd23f,#ff5a5f,#3da5ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--mu);font-size:13px}
+.wrap{display:grid;gap:14px;padding:10px 18px 18px;grid-template-columns:1fr}
+@media(min-width:960px){.wrap{grid-template-columns:1fr 360px}}
+#stage{position:relative;height:62vh;min-height:360px;border-radius:16px;border:1px solid var(--line);background:linear-gradient(#0e1546,#070a24);overflow:hidden}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.hint{position:absolute;left:10px;bottom:8px;font-size:12px;color:var(--mu);pointer-events:none}
+.zoom{position:absolute;right:10px;top:10px;display:flex;gap:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+button{font:inherit;color:var(--tx);background:#222a69;border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer}
+button:hover{background:#2d3787}
+button.on{background:linear-gradient(135deg,#6a5cff,#3da5ff);border-color:transparent;font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.tab{flex:1 1 45%;text-align:left}
+.t1.on{background:var(--r1)}.t2.on{background:var(--r2)}.t3.on{background:var(--r3);color:#222}
+label{display:block;font-size:13px;color:var(--mu);margin-top:6px}
+input[type=range]{width:100%;accent-color:#6a5cff}
+#rt{font-size:15px}#rt b{color:#fff}
+.mn{display:inline-block;margin-top:6px;padding:4px 10px;border-radius:999px;background:#0b1030;border:1px dashed var(--line);font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px}td{padding:3px 0}td:last-child{text-align:right;font-weight:600}
+footer{text-align:center;color:var(--mu);font-size:13px;padding:6px 10px 18px}
+footer b{color:#ffd23f}
+</style></head><body>
+<header><h1>🔍 Ray Diagram Rules – Convex &amp; Concave Lenses (3D)</h1>
+<div class="sub">Class 10 · NCERT Science · Light – Reflection and Refraction · Image formation in lenses using ray diagrams</div></header>
+<div class="wrap">
+<div id="stage"><div class="zoom"><button id="zi">＋</button><button id="zo">－</button></div><div class="hint">Drag to rotate · scroll or ＋/－ to zoom</div></div>
+<div>
+<div class="card">
+<div class="row"><button id="bcx" class="on">Convex lens</button><button id="bcc">Concave lens</button></div>
+<div class="row" id="tabs">
+<button class="tab t1 on" data-r="1">Rule 1</button><button class="tab t2" data-r="2">Rule 2</button>
+<button class="tab t3" data-r="3">Rule 3</button><button class="tab" data-r="4">All rays + image</button></div>
+<div id="rt"></div>
+</div>
+<div class="card">
+<label>Object distance from lens: <b id="uv"></b> cm<input id="us" type="range" min="2" max="14" step="0.5" value="9"></label>
+<label>Focal length: <b id="fv"></b> cm<input id="fs" type="range" min="3" max="7" step="0.5" value="5"></label>
+<div class="row" style="margin-top:10px"><button id="play">▶ Replay ray</button><button id="front">Front view (2D)</button><button id="tilt">3D view</button><button id="auto">Auto-rotate</button></div>
+</div>
+<div class="card"><table id="ro"></table></div>
+</div></div>
+<footer>Created by <b>Hrishikesh M (PGT Physics)</b></footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const S={type:'convex',rule:1,u:9,f:5,t:1,auto:false,th:.55,ph:.22,rad:27};
+const H=1.2,R=5.5,L=16,SUB='₁₂';
+const COL={1:0xff5a5f,2:0x3da5ff,3:0xffd23f};
+const T=$('stage');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));T.prepend(renderer.domElement);
+const scene=new THREE.Scene(),cam=new THREE.PerspectiveCamera(45,1,.1,200);
+scene.add(new THREE.AmbientLight(0xffffff,.75));
+const dl=new THREE.DirectionalLight(0xffffff,.8);dl.position.set(5,10,12);scene.add(dl);
+const grid=new THREE.GridHelper(70,35,0x3a4aa8,0x1e2766);grid.position.y=-7;scene.add(grid);
+const P=(x,y)=>new THREE.Vector3(x,y,0),UP=new THREE.Vector3(0,1,0);
+const cylG=new THREE.CylinderGeometry(1,1,1,8),coneG=new THREE.ConeGeometry(.22,.55,14);
+function seg(a,b,r,mat){const d=b.clone().sub(a),l=d.length()||.001,m=new THREE.Mesh(cylG,mat);m.scale.set(r,l,r);m.position.copy(a).add(b).multiplyScalar(.5);m.quaternion.setFromUnitVectors(UP,d.normalize());return m}
+function lab(t,col,sc=1){const c=document.createElement('canvas');c.width=256;c.height=96;const x=c.getContext('2d');x.font='bold 52px system-ui,sans-serif';x.textAlign='center';x.fillStyle=col;x.fillText(t,128,66);
+const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false}));s.scale.set(3.2*sc,1.2*sc,1);return s}
+const bas=c=>new THREE.MeshBasicMaterial({color:c});
+const rayMat={1:bas(COL[1]),2:bas(COL[2]),3:bas(COL[3])};
+// principal axis
+scene.add(seg(P(-22,0),P(22,0),.04,bas(0xdfe5ff)));
+// markers
+const MK=[];
+[[-1,1,'F₁','#ffd23f'],[1,1,'F₂','#ffd23f'],[-1,2,'2F₁','#9fb0ff'],[1,2,'2F₂','#9fb0ff']].forEach(([s,k,t,c])=>{
+ const m=new THREE.Mesh(new THREE.SphereGeometry(k==1?.17:.12,16,12),bas(k==1?0xffd23f:0x9fb0ff));const l=lab(t,c,.8);scene.add(m,l);MK.push({m,l,s,k})});
+const Ol=lab('O','#ffffff',.8);Ol.position.set(0,-1.1,0);scene.add(Ol);
+function place(){MK.forEach(o=>{const x=o.s*o.k*S.f;o.m.position.set(x,0,0);o.l.position.set(x,-1,0)})}
+// lens
+let lens;
+function mkLens(){if(lens)scene.remove(lens);const cx=S.type==='convex',N=24,pts=[],top=[];
+ for(let i=0;i<=N;i++){const r=R*i/N,q=r/R,t=cx?.06+.5*Math.sqrt(1-q*q):.1+.55*q*q;pts.push(new THREE.Vector2(r,-t));top.unshift(new THREE.Vector2(r,t))}
+ const g=new THREE.LatheGeometry(pts.concat(top),64);
+ lens=new THREE.Mesh(g,new THREE.MeshPhongMaterial({color:cx?0x66e0ff:0xc58cff,transparent:true,opacity:.42,shininess:120,side:THREE.DoubleSide,specular:0xffffff}));
+ lens.rotation.z=Math.PI/2;scene.add(lens)}
+// arrows
+function arrow(c){const g=new THREE.Group(),mt=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.5,transparent:true});
+ const sh=new THREE.Mesh(new THREE.CylinderGeometry(.09,.09,1,10),mt),co=new THREE.Mesh(new THREE.ConeGeometry(.25,.4,14),mt);g.add(sh,co);scene.add(g);
+ g.set=(x,y)=>{const s=y<0?-1:1,l=Math.max(Math.abs(y)-.4,.02);sh.scale.y=l;sh.position.y=s*l/2;co.position.y=s*(l+.2);co.rotation.z=s>0?0:Math.PI;g.position.x=x};g.mt=mt;return g}
+const obj=arrow(0xff9f1c),img=arrow(0x2ee59d);
+const oL=lab('Object (candle)','#ffb84d',.9),iL=lab('Image','#2ee59d',.9);scene.add(oL,iL);
+const RG=new THREE.Group();scene.add(RG);
+// physics + drawing
+function calc(){const cx=S.type==='convex',f=S.f,u=S.u,inf=cx&&Math.abs(1/f-1/u)<.002;
+ const v=inf?NaN:1/((cx?1/f:-1/f)-1/u);return{cx,f,u,inf,v,m:inf?NaN:-v/u}}
+function rd(k,c){const{cx,f,u}=c,tip=P(-u,H);let s=[],d=[],hit;
+ if(k==1){hit=P(0,H);s.push([tip,hit]);if(cx)s.push([hit,P(L,H*(1-L/f))]);else{s.push([hit,P(L,H+H*L/f)]);d.push([hit,P(-f,0)])}}
+ if(k==2){let y;if(cx){if(Math.abs(u-f)<.1)return null;y=H*f/(f-u);if(u<f)d.push([P(-f,0),tip])}else{y=H*f/(f+u);d.push([P(0,y),P(f,0)])}
+  hit=P(0,y);s.push([tip,hit],[hit,P(L,y)])}
+ if(k==3){hit=P(0,0);s.push([tip,hit],[hit,P(L,-H*L/u)])}
+ if(S.rule==4&&c.v<0)d=[[hit,P(c.v,c.m*H)]];
+ return{k,s,d,hit}}
+function build(){
+ while(RG.children.length)RG.remove(RG.children[0]);
+ const c=calc(),all=S.rule==4,list=all?[1,2,3]:[S.rule];
+ obj.set(-c.u,H);oL.position.set(-c.u,H+1.1,0);
+ let note='';
+ list.forEach(k=>{const r=rd(k,c);if(!r){note='Object is at F₁: the refracted rays are parallel, so this ray can’t be drawn to a lens point.';return}
+  const mat=rayMat[k],all2=[...r.s.map(a=>[a,0]),...r.d.map(a=>[a,1])];
+  const tot=all2.reduce((q,[[a,b]])=>q+a.distanceTo(b),0),shown=S.t*tot;let c0=0;
+  all2.forEach(([[a,b],dash])=>{const Ls=a.distanceTo(b),vis=Math.min(Math.max(shown-c0,0),Ls);c0+=Ls;if(vis<.02)return;const e=a.clone().lerp(b,vis/Ls);
+   if(!dash){RG.add(seg(a,e,.07,mat));if(vis>=Ls-.02&&Ls>2.5){const cn=new THREE.Mesh(coneG,mat);cn.position.copy(a).lerp(b,.5);cn.quaternion.setFromUnitVectors(UP,b.clone().sub(a).normalize());RG.add(cn)}}
+   else{const dir=b.clone().sub(a).normalize();for(let x=0;x<vis;x+=.45){const p=a.clone().addScaledVector(dir,x),q=a.clone().addScaledVector(dir,Math.min(x+.25,vis));RG.add(seg(p,q,.05,mat))}}});
+  if(shown>.1){const hs=new THREE.Mesh(new THREE.SphereGeometry(.16,12,10),mat);hs.position.copy(r.hit);RG.add(hs)}
+  if(c.cx&&k==2&&Math.abs(r.hit.y)>R)note='Lens is assumed large enough here (ray meets it above/below the drawn edge).'});
+ const showImg=all&&S.t>=1&&!c.inf&&Math.abs(c.v)<=L-.5;
+ img.visible=iL.visible=showImg;
+ if(showImg){img.set(c.v,c.m*H);img.mt.opacity=c.v<0?.55:1;iL.position.set(c.v,c.m*H+(c.m<0?-1.1:1.1),0);
+  iL.material.map.dispose&&0}
+ info(c,note)}
+const TXT={
+1:{cx:'A ray of light <b>parallel to the principal axis</b>, after refraction through a convex lens, <b>passes through the principal focus F₂</b> on the other side of the lens.',
+   cc:'A ray <b>parallel to the principal axis</b> is refracted by a concave lens so that it <b>appears to diverge from the principal focus F₁</b> on the same side of the lens (dotted line).',m:'Parallel in → through / from focus'},
+2:{cx:'A ray <b>passing through the principal focus F₁</b>, after refraction through a convex lens, <b>emerges parallel to the principal axis</b>.',
+   cc:'A ray <b>directed towards the principal focus F₂</b> (on the other side) of a concave lens emerges <b>parallel to the principal axis</b> after refraction.',m:'Through focus in → parallel out'},
+3:{cx:'A ray <b>passing through the optical centre O</b> of a lens emerges <b>without any deviation</b>.',
+   cc:'A ray <b>passing through the optical centre O</b> of a lens emerges <b>without any deviation</b> – same for concave.',m:'Through O → goes straight'},
+4:{cx:'Draw any two (here all three) rules together. Where the refracted rays <b>actually meet</b> is a <b>real</b> image; where they only <b>appear to meet</b> (dotted lines) is a <b>virtual</b> image.',
+   cc:'A concave lens’s rays diverge, so they only <b>appear to meet</b> on the object’s side: the image is always <b>virtual, erect and diminished</b>.',m:'Move the object to see how the image changes'}};
+const NM={1:'Rule 1',2:'Rule 2',3:'Rule 3',4:'Full diagram'};
+function info(c,note){
+ const t=TXT[S.rule],cl=S.rule<4?`style="color:#${COL[S.rule].toString(16).padStart(6,'0')}"`:'';
+ $('rt').innerHTML=`<div ${cl}><b>${NM[S.rule]} – ${c.cx?'Convex':'Concave'} lens</b></div><p style="margin:6px 0">${c.cx?t.cx:t.cc}</p><span class="mn">💡 ${t.m}</span>${note?`<p style="color:#ffb84d;font-size:13px;margin:8px 0 0">⚠ ${note}</p>`:''}`;
+ $('uv').textContent=S.u;$('fv').textContent=S.f;
+ let nat,sz;if(c.inf){nat='Real, inverted';sz='Image at infinity'}else{nat=(c.v>0?'Real, inverted':'Virtual, erect');const a=Math.abs(c.m);sz=a>1.02?'Magnified':a<.98?'Diminished':'Same size'}
+ $('ro').innerHTML=`<tr><td>Object distance (u)</td><td>−${S.u} cm</td></tr><tr><td>Image distance (v)</td><td>${c.inf?'∞':(c.v>0?'+':'−')+Math.abs(c.v).toFixed(1)+' cm'}</td></tr><tr><td>Magnification (m)</td><td>${c.inf?'—':c.m.toFixed(2)}</td></tr><tr><td>Nature</td><td>${nat}</td></tr><tr><td>Size</td><td>${sz}</td></tr>`}
+// events
+let dirty=true;
+function ui(){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',+b.dataset.r==S.rule));$('bcx').classList.toggle('on',S.type=='convex');$('bcc').classList.toggle('on',S.type=='concave')}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{S.rule=+b.dataset.r;S.t=0;ui();dirty=true});
+$('bcx').onclick=()=>{S.type='convex';mkLens();S.t=0;ui();dirty=true};
+$('bcc').onclick=()=>{S.type='concave';mkLens();S.t=0;ui();dirty=true};
+$('us').oninput=e=>{S.u=+e.target.value;S.t=1;dirty=true};
+$('fs').oninput=e=>{S.f=+e.target.value;S.t=1;place();dirty=true};
+$('play').onclick=()=>{S.t=0;dirty=true};
+$('front').onclick=()=>{S.th=0;S.ph=0;S.auto=false;$('auto').classList.remove('on')};
+$('tilt').onclick=()=>{S.th=.55;S.ph=.22};
+$('auto').onclick=()=>{S.auto=!S.auto;$('auto').classList.toggle('on',S.auto)};
+$('zi').onclick=()=>S.rad=Math.max(10,S.rad-3);$('zo').onclick=()=>S.rad=Math.min(55,S.rad+3);
+let drag=null;const cv=renderer.domElement;
+cv.onpointerdown=e=>{drag=[e.clientX,e.clientY];cv.setPointerCapture(e.pointerId);cv.style.cursor='grabbing'};
+cv.onpointermove=e=>{if(!drag)return;S.th-=(e.clientX-drag[0])*.008;S.ph=Math.max(-.2,Math.min(1.2,S.ph+(e.clientY-drag[1])*.006));drag=[e.clientX,e.clientY]};
+cv.onpointerup=()=>{drag=null;cv.style.cursor='grab'};
+cv.addEventListener('wheel',e=>{e.preventDefault();S.rad=Math.max(10,Math.min(55,S.rad+e.deltaY*.02))},{passive:false});
+function size(){const w=T.clientWidth,h=T.clientHeight;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()}
+new ResizeObserver(size).observe(T);
+let last=performance.now();
+function loop(now){const dt=Math.min((now-last)/1000,.1);last=now;
+ if(S.t<1){S.t=Math.min(1,S.t+dt/2.6);dirty=true}
+ if(S.auto)S.th+=dt*.3;
+ if(dirty){build();dirty=false}
+ const cp=Math.cos(S.ph);cam.position.set(S.rad*Math.sin(S.th)*cp,1+S.rad*Math.sin(S.ph),S.rad*Math.cos(S.th)*cp);cam.lookAt(1,0,0);
+ renderer.render(scene,cam);requestAnimationFrame(loop)}
+place();mkLens();size();ui();requestAnimationFrame(loop);
+</script></body></html>
